@@ -3,42 +3,128 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 contract BlindAuction {
-    uint public value;
-    address payable public seller;
-    address payable public buyer;
+    struct Bid {
+        bytes32 blindedBid;
+        uint deposit;
+    }
 
-    enum State { Created, Locked, Release, Inactive }
-    State public state;
+    address payable public beneficiary;
+    uint public biddingEnd;
+    uint public revealEnd;
+    bool public ended;
 
-    modifier condition(bool _condition) {
-        require(_condition);
+    mapping(address => Bid[]) public bids;
+
+    address public highestBidder;
+    uint public highestBid;
+
+    // Allowed withdrawals of previous bids  
+    mapping(address => uint) pendingReturns;
+
+    event AuctionEnded(address winner, uint highestBid);
+
+    /// Modifiers are a convenient way to validate inputs to functions. "onlyBefore" is applied to "bid" below.
+    /// The new function body is the modifier's body where "_" is replaced by the old function body.
+    modifier onlyBefore(uint _time) {
+        require(block.timestamp < _time);
         _;
     }
 
-    modifier onlyBuyer() {
-        require(msg.sender == buyer, "Only the buyer can call this functionality.");
-        _;
-    }
-    
-    modifier onlySeller() {
-        require(msg.sender == seller, "Only the seller can call this functionality.");
+    modifier onlyAfter(uint _time) {
+        require(block.timestamp > _time);
         _;
     }
 
-    modifier inState(State _state) {
-        require(state == _state, "Invalid state.");
-        _;
+    constructor(uint _biddingTime, uint _revealTime, address payable _beneficiary) {
+        beneficiary = _beneficiary;
+        biddingEnd = block.timestamp + _biddingTime;
+        revealEnd = biddingEnd + _revealTime;
     }
 
-    event Aborted();
-    event PurchaseConfirmed();
-    event ItemReceived();
-    event SellerRefunded();
+    /// Place a blinded bid with "_blindedBid" = keccak256(abi.encodePacked(value, fake, secret)).
+    /// The sent ether is only refunded if the bid is correctly revealed in the revealing phase. The bid is valid if the ether sent together with the bid is at least the "value" and "fake" isn't true;
+    /// Setting "fake" to true and sending not the exact amount are ways to hide the real bid but still make the required deposit.
+    /// The same address can place multiple bids.
+    function bid(bytes32 _blindedBid) public payable onlyBefore(biddingEnd){
+        bids[msg.sender].push(Bid({
+            blindedBid: _blindedBid,
+            deposit: msg.value
+        }));
+    }
 
-    constructor() payable {
-        seller = payable(msg.sender);
-        value = msg.value / 2;
+    /// Reveal your blinded bids. You will get a refund for all correctly blinded invalid bids and for all bids except for the totally highest. 
+    function reveal(uint[] memory _values, bool[] memory _fake, bytes32[] memory _secret) public onlyAfter(biddingEnd) onlyBefore(revealEnd) {
+        uint length = bids[msg.sender].length;
+
+        require(_values.length == length);
+        require(_fake.length == length);
+        require(_secret.length == length);
+
+        uint refund;
+
+        for(uint i = 0; i < length; i++) {
+            Bid storage bidToCheck = bids[msg.sender][i];
+            
+            (uint value, bool fake, bytes32 secret) = (_values[i], _fake[i], _secret[i]);
+
+            if(bidToCheck.blindedBid != keccak256(abi.encodePacked(value, fake, secret))) {
+                // Bid wasn't actually revealed. Do not refund deposits.
+                continue;
+            }
+
+            refund += bidToCheck.deposit;
+
+            if(!fake && bidToCheck.deposit >= value) {
+                if(placeBid(msg.sender, value)) {
+                    refund -= value;
+                }
+            }
+
+            //Make it impossible for the sender to reclaim the same deposit.
+            bidToCheck.blindedBid = bytes32(0);
+        }
+
+        payable(msg.sender).transfer(refund);
+    }
+
+    /// Withdraw a bid that was overbid.
+    function withdraw() public {
+        uint amount = pendingReturns[msg.sender];
+
+        if(amount > 0) {
+            // It is important to set this to zero because the recipient can call this function again as part of the receiving call before "transfer" returns.
+            // (see the remark above about conditions -> effects -> interactions).
+            pendingReturns[msg.sender] = 0;
+
+            payable(msg.sender).transfer(amount);
+        }
+    }
+
+    // End the auction and send the highest bid to the beneficiary.
+    function auctionEnd() public onlyAfter(revealEnd){
+        require(!ended);
         
-        require((2 * value) == msg.value, "tThe value has to be even.");
+        emit AuctionEnded(highestBidder, highestBid);
+
+        ended = true;
+
+        beneficiary.transfer(highestBid);
+    }
+
+    // This is an internal function which means that it can only be called from the contract itself (or from derived contracts).
+    function placeBid(address bidder, uint value) internal returns(bool success) {
+        if(value <= highestBid) {
+            return false;
+        }
+
+        if(highestBidder != address(0)) {
+            // Refund the previously highest bidder.
+            pendingReturns[highestBidder] += highestBid;
+        }
+
+        highestBid = value;
+        highestBidder = bidder;
+
+        return true;
     }
 }
