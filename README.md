@@ -16,7 +16,7 @@
   <a href="https://github.com/darubiomunoz/smartcontract-print">
     <img src="./src/images/smart-contracts-logo.svg" alt="Logo" width="200" height="200">
   </a>
-  <h1 align="center">Simple Auction Smart Contract</h1>
+  <h1 align="center">Blind Auction Smart Contract</h1>
   <p align="center">
     Blockchain
     <br />
@@ -56,7 +56,7 @@
 
 ![Product Name Screen Shot][product-screenshot]
 
-This smart contracts works nice for a simple action where we can define a deadline for the auction to end, and then pay the beneciary and return the money back to those who didn't make it to the top of the bidders. :smile:
+Blind auction smart contract where we can define a deadline for the auction to end however with the benefit of not having time pressure at the end of the bidding period. Once the auction ended the smart contract itself pay the beneficiary and return the money back to those who didn't make it to the top of the bidders. :smile:
 
 If you're interested in smart contracts I invite you to study the code and try to replicate by yourself with the help of the solidity documentation. :stars:
 
@@ -82,10 +82,10 @@ In the web app you can create, compile, deploy and interact with smart contracts
 
 1. Clone the repo
    ```sh
-   git clone https://github.com/darubiomunoz/smartcontract-simpleauction.git
+   git clone https://github.com/darubiomunoz/smartcontract-blindauction.git
    ```
    ```sh
-   git clone git@github.com:darubiomunoz/smartcontract-simpleauction.git
+   git clone git@github.com:darubiomunoz/smartcontract-blindauction.git
    ```
 
 <!-- USAGE EXAMPLES -->
@@ -126,7 +126,7 @@ Diego Rubio
 [linkedin](https://www.linkedin.com/in/darmdev/)
 darubiomunoz@gmail.com
 
-Project Link: [https://github.com/darubiomunoz/smartcontract-simpleauction.git](https://github.com/darubiomunoz/smartcontract-simpleauction.git)
+Project Link: [https://github.com/darubiomunoz/smartcontract-blindauction.git](https://github.com/darubiomunoz/smartcontract-blindauction.git)
 
 <!-- ACKNOWLEDGEMENTS -->
 ## 8. Acknowledgements :clap:
